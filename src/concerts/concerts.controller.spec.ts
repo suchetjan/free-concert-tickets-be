@@ -8,7 +8,9 @@ describe('ConcertsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ConcertsController],
-      providers: [ConcertsService],
+      providers: [
+        { provide: ConcertsService, useValue: {} }, // mock service to isolate controller tests
+      ],
     }).compile();
 
     controller = module.get<ConcertsController>(ConcertsController);
