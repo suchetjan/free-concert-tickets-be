@@ -1,26 +1,47 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateConcertDto } from './dto/create-concert.dto';
 import { UpdateConcertDto } from './dto/update-concert.dto';
+import { Concert } from './entities/concert.entity';
 
 @Injectable()
 export class ConcertsService {
-  create(createConcertDto: CreateConcertDto) {
-    return 'This action adds a new concert';
+  constructor(
+    @InjectRepository(Concert)
+    private readonly concertRepository: Repository<Concert>,
+  ) {}
+
+  async create(createConcertDto: CreateConcertDto): Promise<Concert> {
+    const concert = this.concertRepository.create(createConcertDto);
+    return await this.concertRepository.save(concert);
   }
 
-  findAll() {
-    return `This action returns all concerts`;
+  async findAll(): Promise<Concert[]> {
+    return await this.concertRepository.find();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} concert`;
+  async findOne(id: number): Promise<Concert> {
+    const concert = await this.concertRepository.findOne({ where: { id } });
+    if (!concert) {
+      throw new NotFoundException(`Concert #${id} not found`);
+    }
+    return concert;
   }
 
-  update(id: number, updateConcertDto: UpdateConcertDto) {
-    return `This action updates a #${id} concert`;
+  async update(id: number, updateConcertDto: UpdateConcertDto): Promise<Concert> {
+    const concert = await this.concertRepository.preload({
+      id: id,
+      ...updateConcertDto,
+    });
+    if (!concert) {
+      throw new NotFoundException(`Concert #${id} not found`);
+    }
+    return this.concertRepository.save(concert);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} concert`;
+  async remove(id: number): Promise<void> {
+    const concert = await this.findOne(id);
+    await this.concertRepository.remove(concert);
   }
 }
