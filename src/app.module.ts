@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConcertsModule } from './concerts/concerts.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReservationsModule } from './reservations/reservations.module';
 
 @Module({
@@ -12,6 +14,9 @@ import { ReservationsModule } from './reservations/reservations.module';
       database: 'db.sqlite',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true,
+    }),
+    ConfigModule.forRoot({
+      envFilePath: ['.env.local'],
     }),
     ConcertsModule,
     ReservationsModule,

@@ -17,6 +17,11 @@ export class ReservationsController {
     return this.reservationsService.findAll(userId);
   }
 
+  @Get('stats')
+  getAdminStats() {
+    return this.reservationsService.getAdminStats();
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.reservationsService.remove(+id);

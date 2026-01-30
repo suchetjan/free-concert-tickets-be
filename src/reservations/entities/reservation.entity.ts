@@ -12,6 +12,12 @@ export class Reservation {
   @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   reservedAt: Date;
 
+  @Column({ default: false })
+  isDeleted: boolean;
+
+  @Column({ type: 'datetime', nullable: true })
+  cancelledAt: Date;
+
   @ManyToOne(() => Concert, (concert) => concert.reservations, { onDelete: 'CASCADE' })
   concert: Concert;
 }

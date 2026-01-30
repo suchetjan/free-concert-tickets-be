@@ -18,7 +18,9 @@ export class ConcertsService {
   }
 
   async findAll(): Promise<Concert[]> {
-    return await this.concertRepository.find();
+    return await this.concertRepository.find({
+      relations: ['reservations'],
+    });
   }
 
   async findOne(id: number): Promise<Concert> {
