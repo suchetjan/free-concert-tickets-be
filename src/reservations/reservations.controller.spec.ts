@@ -53,7 +53,7 @@ describe('ReservationsController', () => {
     it('should call service.remove', async () => {
       jest.spyOn(service, 'remove').mockResolvedValue({ id: 1 } as any);
 
-      await controller.remove(1);
+      await controller.remove('1');
       expect(service.remove).toHaveBeenCalledWith(1);
     });
   });
