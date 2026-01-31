@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { Reservation } from './entities/reservation.entity';
+import { Reservation, ReservationStatus } from './entities/reservation.entity';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { Concert } from '../concerts/entities/concert.entity';
 
@@ -18,16 +18,16 @@ export class ReservationsService {
   async create(createReservationDto: CreateReservationDto) {
     const { concertId, userId } = createReservationDto;
 
-    const existing = await this.reservationRepository.findOne({
+    const existingActive = await this.reservationRepository.findOne({
       where: {
         concert: { id: concertId },
         userId,
-        isDeleted: false
+        status: ReservationStatus.RESERVED
       },
     });
 
-    if (existing) {
-      throw new BadRequestException('You have already reserved a seat for this concert.');
+    if (existingActive) {
+      throw new BadRequestException('You already have an active reservation.');
     }
 
     const concert = await this.concertRepository.findOne({
@@ -35,65 +35,63 @@ export class ReservationsService {
       relations: ['reservations'],
     });
 
-    if (!concert) {
-      throw new NotFoundException('Concert not found');
+    if (!concert) throw new NotFoundException('Concert not found');
+
+    const occupiedSeats = concert.reservations.filter(
+      r => r.status === ReservationStatus.RESERVED
+    ).length;
+
+    if (occupiedSeats >= concert.totalSeats) {
+      throw new BadRequestException('Concert is full.');
     }
 
-    const activeReservations = concert.reservations.filter(r => !r.isDeleted);
-
-    if (activeReservations.length >= concert.totalSeats) {
-      throw new BadRequestException('No seats available.');
-    }
-
-    const reservation = this.reservationRepository.create({
+    const newReservation = this.reservationRepository.create({
       concert,
       userId,
+      status: ReservationStatus.RESERVED,
     });
 
-    return await this.reservationRepository.save(reservation);
+    return await this.reservationRepository.save(newReservation);
   }
 
   async findAll(userId?: string) {
     const query = this.reservationRepository.createQueryBuilder('reservation')
-      .leftJoinAndSelect('reservation.concert', 'concert')
-      .where('reservation.isDeleted = :isDeleted', { isDeleted: false });
+      .leftJoinAndSelect('reservation.concert', 'concert');
 
     if (userId) {
-      query.andWhere('reservation.userId = :userId', { userId });
+      query.where('reservation.userId = :userId', { userId });
     }
 
-    return await query.getMany();
-  }
+    query.orderBy('reservation.reservedAt', 'DESC');
 
-  async countCancelled() {
-    return await this.reservationRepository.count({
-      where: { isDeleted: true }
-    });
+    return await query.getMany();
   }
 
   async remove(id: number) {
     const reservation = await this.reservationRepository.findOne({ where: { id } });
 
-    if (!reservation) {
-      throw new NotFoundException('Reservation not found');
+    if (!reservation) throw new NotFoundException('Reservation not found');
+
+    if (reservation.status === ReservationStatus.CANCELLED) {
+      throw new BadRequestException('Already cancelled');
     }
 
-    if (reservation.isDeleted) {
-      throw new BadRequestException('Reservation is already cancelled');
-    }
-
-    reservation.isDeleted = true;
+    reservation.status = ReservationStatus.CANCELLED;
     reservation.cancelledAt = new Date();
 
     return await this.reservationRepository.save(reservation);
   }
 
   async getAdminStats() {
-    const totalConcerts = await this.concertRepository.find({ relations: ['reservations'] });
-
+    const totalConcerts = await this.concertRepository.find();
     const totalSeats = totalConcerts.reduce((acc, c) => acc + c.totalSeats, 0);
-    const reserved = await this.reservationRepository.count({ where: { isDeleted: false } });
-    const cancelled = await this.reservationRepository.count({ where: { isDeleted: true } });
+
+    const reserved = await this.reservationRepository.count({
+      where: { status: ReservationStatus.RESERVED }
+    });
+    const cancelled = await this.reservationRepository.count({
+      where: { status: ReservationStatus.CANCELLED }
+    });
 
     return { totalSeats, reserved, cancelled };
   }

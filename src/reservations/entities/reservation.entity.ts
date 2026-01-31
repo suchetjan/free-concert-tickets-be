@@ -1,19 +1,28 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
 import { Concert } from '../../concerts/entities/concert.entity';
 
+export enum ReservationStatus {
+  RESERVED = 'reserved',
+  CANCELLED = 'cancelled',
+}
+
 @Entity()
 export class Reservation {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column()
-  userId: string; 
+  userId: string;
 
   @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   reservedAt: Date;
 
-  @Column({ default: false })
-  isDeleted: boolean;
+  @Column({
+    type: 'simple-enum',
+    enum: ReservationStatus,
+    default: ReservationStatus.RESERVED,
+  })
+  status: ReservationStatus;
 
   @Column({ type: 'datetime', nullable: true })
   cancelledAt: Date;
